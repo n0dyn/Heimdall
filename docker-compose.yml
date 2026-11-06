@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: heimdall-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=heimdall
+      - POSTGRES_USER=heimdall
+      - POSTGRES_PASSWORD=heimdall
+    # Not published on the host. Other containers reach it as hostname "postgres".
+    expose:
+      - "5432"
+    volumes:
+      - heimdall-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U heimdall -d heimdall"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - heimdall-network
+
+  heimdall:
+    build: .
+    container_name: heimdall-siem
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Internet path is cloudflared to 8501 only, after SIEM_PUBLIC=1.
+    # 8010 is for agents on the LAN or VPN. 5514/udp is for the UniFi gateway.
+    # Do not put 8010 or 5514 in the tunnel, and do not forward them on the router.
+    ports:
+      - "8010:8010"  # API server
+      - "8501:8501"  # Dashboard
+      - "5514:5514/udp"  # UniFi / syslog CEF
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SIEM_API_URL=${SIEM_API_URL:-http://YOUR_HUB_IP:8010}
+      - SIEM_API_KEY=${SIEM_API_KEY}
+      - SIEM_DB_HOST=postgres
+      - SIEM_DB_PORT=5432
+      - SIEM_DB_NAME=heimdall
+      - SIEM_DB_USER=heimdall
+      - SIEM_DB_PASSWORD=heimdall
+      - SIEM_SERVER_HOST=0.0.0.0
+      - SIEM_SERVER_PORT=8010
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - SIEM_PUBLIC=${SIEM_PUBLIC:-}
+      - SIEM_ORIGIN=${SIEM_ORIGIN:-}
+      - SIEM_RP_ID=${SIEM_RP_ID:-}
+      - SIEM_BOOTSTRAP_TOKEN=${SIEM_BOOTSTRAP_TOKEN:-}
+      - SIEM_TRUST_PROXY=${SIEM_TRUST_PROXY:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8010/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - heimdall-network
+
+  # Optional TLS front door. Enable with:
+  #   SIEM_PUBLIC=1 SIEM_ORIGIN=https://host SIEM_RP_ID=host \
+  #   SIEM_PUBLIC_HOST=host SIEM_TRUST_PROXY=1 \
+  #   docker compose --profile public up -d
+  caddy:
+    image: caddy:2
+    profiles: ["public"]
+    restart: unless-stopped
+    depends_on:
+      - heimdall
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - SIEM_PUBLIC_HOST=${SIEM_PUBLIC_HOST}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - heimdall-network
+
+volumes:
+  heimdall-db:
+  caddy-data:
+  caddy-config:
+
+networks:
+  heimdall-network:
+    driver: bridge

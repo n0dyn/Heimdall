@@ -1,0 +1,87 @@
+#!/bin/sh
+# Forced-command reader for Heimdall. The collector also sends this script
+# over SSH when the docker server has a normal key and no installed copy.
+# It lists or reads cve-check.log, update.log, and the single rotated copy
+# of each. Anything under .cache is refused.
+set -u
+if [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
+  case "$SSH_ORIGINAL_COMMAND" in
+    *[\`\$\;\&\|\<\>\\\'\"]*) echo "DENIED" >&2; exit 2 ;;
+    *"("*|*")"*|*"{"|*"}"*|*\[*|*\]*) echo "DENIED" >&2; exit 2 ;;
+  esac
+  # shellcheck disable=SC2086
+  set -- $SSH_ORIGINAL_COMMAND
+  shift
+fi
+action=${1-}
+dir=${2-}
+name=${3-}
+offset=${4-}
+limit=${5-}
+case "$action" in
+  list|read) ;;
+  *) echo "DENIED" >&2; exit 2 ;;
+esac
+case "$dir" in
+  /*) ;;
+  *) echo "DENIED" >&2; exit 2 ;;
+esac
+case "$dir" in
+  *..*) echo "DENIED" >&2; exit 2 ;;
+esac
+case "$dir" in
+  */.cache|*/.cache/*) echo "DENIED" >&2; exit 2 ;;
+esac
+oldifs=$IFS
+IFS=/
+for part in $dir; do
+  if [ "$part" = ".cache" ] || [ "$part" = ".." ]; then
+    echo "DENIED" >&2
+    exit 2
+  fi
+done
+IFS=$oldifs
+list_one() {
+  target="$dir/$1"
+  if [ ! -f "$target" ]; then
+    echo "FILE $1 MISSING"
+    return
+  fi
+  size=$(stat -c %s "$target")
+  inode=$(stat -c %i "$target")
+  echo "FILE $1 SIZE $size INODE $inode"
+}
+if [ "$action" = "list" ]; then
+  list_one cve-check.log
+  list_one cve-check.log.1
+  list_one update.log
+  list_one update.log.1
+  exit 0
+fi
+case "$name" in
+  cve-check.log|cve-check.log.1|update.log|update.log.1) ;;
+  *) echo "DENIED" >&2; exit 2 ;;
+esac
+case "$offset" in
+  ""|*[!0-9]*) echo "DENIED" >&2; exit 2 ;;
+esac
+case "$limit" in
+  ""|*[!0-9]*) echo "DENIED" >&2; exit 2 ;;
+esac
+if [ "$limit" -gt 262144 ]; then
+  echo "DENIED" >&2
+  exit 2
+fi
+path="$dir/$name"
+if [ ! -f "$path" ]; then
+  echo "MISSING"
+  exit 0
+fi
+size=$(stat -c %s "$path")
+inode=$(stat -c %i "$path")
+printf 'SIZE %s INODE %s\n' "$size" "$inode"
+if [ "$offset" -ge "$size" ]; then
+  exit 0
+fi
+dd if="$path" iflag=skip_bytes,count_bytes skip="$offset" count="$limit" status=none
+exit 0

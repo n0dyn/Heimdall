@@ -1,0 +1,162 @@
+# Mini-SIEM Environment Configuration
+# Copy to .env file and update values for your environment
+
+# ==========================================
+# Docker Deployment Notes
+# ==========================================
+# For Docker deployment, use docker-compose.yml which sets:
+# - SIEM_SERVER_PORT=8010
+# - Postgres via SIEM_DB_HOST, SIEM_DB_PORT, SIEM_DB_NAME, SIEM_DB_USER, SIEM_DB_PASSWORD
+# - Ports exposed: 8010 (API), 8501 (Dashboard), 5514/udp (syslog)
+# See docker-compose.yml for container-specific settings
+
+# ==========================================
+# API Server Configuration
+# ==========================================
+
+# The base URL of the API server (used by agents)
+# Change to your actual server IP or domain in production
+# For Docker deployment: http://YOUR_HUB_IP:8010
+# For local development: http://localhost:8010
+SIEM_API_URL=http://localhost:8010
+
+# API authentication key used by agents and by loopback admin tools.
+# The dashboard does not put this key in the browser. Humans sign in with a
+# passkey (or a one-time login secret) plus an authenticator app.
+# Generate with: openssl rand -hex 32
+SIEM_API_KEY=default-insecure-key-change-me
+
+# ==========================================
+# Operator sign-in (required for the dashboard)
+# ==========================================
+# Leave SIEM_PUBLIC unset on a private LAN over HTTP.
+# Set these before cloudflared publishes the dashboard. The tunnel must
+# point only at http://127.0.0.1:8501. Do not publish 8010 or UDP 5514.
+# SIEM_PUBLIC=1
+# SIEM_ORIGIN=https://heimdall.example.com
+# SIEM_RP_ID=heimdall.example.com
+# SIEM_TRUST_PROXY=1
+# Optional Caddy profile only. A Cloudflare Tunnel does not need SIEM_PUBLIC_HOST.
+# SIEM_PUBLIC_HOST=heimdall.example.com
+# Optional one-time enrollment token. If unset, the API writes data/bootstrap.token (mode 600).
+# SIEM_BOOTSTRAP_TOKEN=
+
+# ==========================================
+# Server Configuration
+# ==========================================
+
+# FastAPI server host (0.0.0.0 = all interfaces)
+SIEM_SERVER_HOST=0.0.0.0
+
+# FastAPI server port
+# Changed to 8010 for Docker deployment to avoid port conflicts
+SIEM_SERVER_PORT=8010
+
+# Number of uvicorn workers (for production)
+SIEM_WORKERS=4
+
+# ==========================================
+# Database Configuration
+# ==========================================
+
+# Postgres is the store. docker-compose.yml sets these on the API container.
+# SIEM_DB_HOST=postgres
+# SIEM_DB_PORT=5432
+# SIEM_DB_NAME=heimdall
+# SIEM_DB_USER=heimdall
+# SIEM_DB_PASSWORD=change-me
+
+# ==========================================
+# Agent Configuration - Linux
+# ==========================================
+
+# Log file path (auto-detected: /var/log/auth.log or /var/log/secure)
+# SIEM_LINUX_LOG_FILE=/var/log/auth.log
+
+# Polling interval in seconds
+SIEM_LINUX_INTERVAL=30
+
+# ==========================================
+# Agent Configuration - Windows
+# ==========================================
+
+# Event log name
+SIEM_WINDOWS_LOG_NAME=Security
+
+# Polling interval in seconds
+SIEM_WINDOWS_INTERVAL=60
+
+# ==========================================
+# Agent Configuration - Pi-hole
+# ==========================================
+
+# Path to Pi-hole FTL database
+SIEM_PIHOLE_DB_PATH=/etc/pihole/pihole-FTL.db
+
+# Polling interval in seconds
+SIEM_PIHOLE_INTERVAL=60
+
+# ==========================================
+# Dashboard
+# ==========================================
+
+# HTML UI served by ui/dashboard_server.py. Port 8501 is set in docker-compose.yml.
+
+# ==========================================
+# Logging Configuration
+# ==========================================
+
+# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+SIEM_LOG_LEVEL=INFO
+
+# ==========================================
+# Security Configuration
+# ==========================================
+
+# Enable HTTPS/TLS (requires certificate files)
+SIEM_ENABLE_TLS=false
+
+# IP whitelist (comma-separated, empty = all IPs allowed)
+# SIEM_IP_WHITELIST=192.168.1.0/24,10.0.0.0/8
+
+# ==========================================
+# Performance Configuration
+# ==========================================
+
+# Maximum events to store in memory before flushing to DB
+SIEM_BATCH_SIZE=100
+
+# Database query timeout in seconds
+SIEM_DB_TIMEOUT=10
+
+# API request timeout in seconds
+SIEM_REQUEST_TIMEOUT=10
+
+# Dashboard refresh interval in seconds (for auto-refresh)
+SIEM_DASHBOARD_REFRESH=30
+
+# ==========================================
+# Retention Configuration
+# ==========================================
+
+# Number of days to retain events in database
+# Leave empty for unlimited retention
+# SIEM_RETENTION_DAYS=90
+
+# ==========================================
+# Monitoring & Alerting
+# ==========================================
+
+# Alert severity threshold (1-5, 0 = no alerts)
+SIEM_ALERT_THRESHOLD=4
+
+# ==========================================
+# Development Configuration
+# ==========================================
+
+# Enable debug mode
+DEBUG=false
+
+# Enable detailed request logging
+SIEM_DEBUG_API=false
+

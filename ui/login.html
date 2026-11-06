@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Heimdall sign-in</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #07080a;
+            color: #f4efe4;
+            font-family: "Source Sans 3", "Segoe UI", sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        main {
+            width: min(460px, 100%);
+            background: #101114;
+            border: 1px solid #2c3548;
+            border-radius: 12px;
+            padding: 28px 24px 22px;
+        }
+        .mark {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+        .mark img { width: 64px; height: 64px; }
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0;
+            margin: 0;
+            color: #f4efe4;
+        }
+        p { color: #c8c2b4; line-height: 1.45; }
+        label { display: block; color: #d7d0c4; font-weight: 600; margin: 14px 0 6px; }
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #07080a;
+            color: #f4efe4;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            font: inherit;
+        }
+        button {
+            margin-top: 14px;
+            width: 100%;
+            padding: 12px 14px;
+            border: 0;
+            border-radius: 4px;
+            background: #e8891a;
+            color: #140c00;
+            font: inherit;
+            font-weight: 700;
+            letter-spacing: 0;
+            cursor: pointer;
+        }
+        button.secondary { background: transparent; color: #f4efe4; border: 1px solid #2c3548; }
+        button:disabled { opacity: 0.55; cursor: wait; }
+        .secret, .codes {
+            font-family: ui-monospace, monospace;
+            background: #07080a;
+            border: 1px solid #333;
+            padding: 12px;
+            word-break: break-all;
+            color: #ffcc00;
+        }
+        .codes { white-space: pre-wrap; }
+        .error { color: #ff3366; min-height: 1.2em; }
+        .muted { color: #8d887c; font-size: 14px; }
+        a { color: #00ccff; }
+    </style>
+</head>
+<body>
+<main>
+    <div class="mark">
+        <img src="/heimdall-logo.svg" alt="">
+        <div>
+            <h1>HEIMDALL</h1>
+            <div class="muted">Operator sign-in</div>
+        </div>
+    </div>
+    <p id="lead">Checking the console.</p>
+    <div id="panel"></div>
+    <p class="error" id="error"></p>
+    <p class="muted" id="foot"></p>
+</main>
+<script>
+const errorEl = document.getElementById('error');
+const panel = document.getElementById('panel');
+const lead = document.getElementById('lead');
+const foot = document.getElementById('foot');
+
+function setError(text) { errorEl.textContent = text || ''; }
+
+async function post(url, body) {
+    const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : '{}',
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch (e) { payload = {}; }
+    if (!response.ok) {
+        const message = payload.detail || payload.message || ('Request failed (' + response.status + ')');
+        throw new Error(typeof message === 'string' ? message : 'Request failed');
+    }
+    return payload;
+}
+
+function b64urlToBuf(value) {
+    const pad = '='.repeat((4 - (value.length % 4)) % 4);
+    const b64 = (value + pad).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(b64);
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out.buffer;
+}
+
+function bufToB64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let raw = '';
+    for (const b of bytes) raw += String.fromCharCode(b);
+    return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function prepareCreation(options) {
+    options.challenge = b64urlToBuf(options.challenge);
+    options.user.id = b64urlToBuf(options.user.id);
+    (options.excludeCredentials || []).forEach(item => { item.id = b64urlToBuf(item.id); });
+    return options;
+}
+
+function prepareRequest(options) {
+    options.challenge = b64urlToBuf(options.challenge);
+    (options.allowCredentials || []).forEach(item => { item.id = b64urlToBuf(item.id); });
+    return options;
+}
+
+function credentialToJSON(cred) {
+    const body = {
+        id: cred.id,
+        rawId: bufToB64url(cred.rawId),
+        type: cred.type,
+        response: {},
+        clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {},
+    };
+    if (cred.response.attestationObject) {
+        body.response.attestationObject = bufToB64url(cred.response.attestationObject);
+        body.response.clientDataJSON = bufToB64url(cred.response.clientDataJSON);
+    } else {
+        body.response.authenticatorData = bufToB64url(cred.response.authenticatorData);
+        body.response.clientDataJSON = bufToB64url(cred.response.clientDataJSON);
+        body.response.signature = bufToB64url(cred.response.signature);
+        if (cred.response.userHandle) body.response.userHandle = bufToB64url(cred.response.userHandle);
+    }
+    return body;
+}
+
+function field(label, id, type) {
+    return '<label for="' + id + '">' + label + '</label><input id="' + id + '" type="' + type + '" autocomplete="off" spellcheck="false">';
+}
+
+function button(id, text, secondary) {
+    return '<button id="' + id + '" class="' + (secondary ? 'secondary' : '') + '" type="button">' + text + '</button>';
+}
+
+async function showEnroll(status) {
+    lead.textContent = 'First-time enrollment. One operator. The token is on the server, in data/bootstrap.token.';
+    foot.textContent = status.webauthn
+        ? 'This origin can use a passkey. You will also enroll an authenticator app.'
+        : 'Passkeys need HTTPS and a domain. This address will use a login secret plus an authenticator app. Add a passkey after you put Heimdall behind TLS.';
+    panel.innerHTML = field('Enrollment token', 'token', 'password') + button('go', 'Continue');
+    document.getElementById('go').onclick = async () => {
+        setError('');
+        try {
+            const begun = await post('/auth/setup/begin', { bootstrap_token: document.getElementById('token').value.trim() });
+            if (begun.webauthn) await enrollPasskey();
+            else await enrollSecret();
+        } catch (err) { setError(err.message); }
+    };
+}
+
+async function enrollPasskey() {
+    lead.textContent = 'Create a passkey on this device or security key. User verification is required.';
+    panel.innerHTML = button('pk', 'Create passkey');
+    document.getElementById('pk').onclick = async () => {
+        setError('');
+        try {
+            const options = await post('/auth/setup/passkey/options');
+            const cred = await navigator.credentials.create({ publicKey: prepareCreation(options) });
+            await post('/auth/setup/passkey/finish', { credential: credentialToJSON(cred) });
+            await enrollTotp();
+        } catch (err) { setError(err.message); }
+    };
+}
+
+async function enrollSecret() {
+    lead.textContent = 'Save this login secret in a password manager. It is shown once.';
+    const created = await post('/auth/setup/secret');
+    panel.innerHTML = '<div class="secret" id="shown"></div>' + button('next', 'I saved it');
+    document.getElementById('shown').textContent = created.login_secret;
+    document.getElementById('next').onclick = () => enrollTotp().catch(err => setError(err.message));
+}
+
+async function enrollTotp() {
+    const totp = await post('/auth/setup/totp/begin');
+    lead.textContent = 'Add this secret to your authenticator app, then enter the 6-digit code.';
+    panel.innerHTML = '<div class="secret" id="otp"></div><p class="muted" id="uri"></p>'
+        + field('Authenticator code', 'code', 'text') + button('confirm', 'Confirm');
+    document.getElementById('otp').textContent = totp.secret;
+    document.getElementById('uri').textContent = totp.otpauth_uri;
+    document.getElementById('confirm').onclick = async () => {
+        setError('');
+        try {
+            const done = await post('/auth/setup/totp/confirm', { code: document.getElementById('code').value.trim() });
+            lead.textContent = 'Store these recovery codes offline. Each one works a single time.';
+            panel.innerHTML = '<div class="codes"></div>' + button('done', 'Continue to sign-in');
+            panel.querySelector('.codes').textContent = (done.recovery_codes || []).join('\n');
+            document.getElementById('done').onclick = () => location.reload();
+        } catch (err) { setError(err.message); }
+    };
+}
+
+async function showLogin(status) {
+    lead.textContent = status.passkey
+        ? 'Sign in with your passkey, then your authenticator code.'
+        : 'Sign in with your login secret, then your authenticator code.';
+    foot.textContent = 'Only the enrolled operator can open the console.';
+    if (status.passkey) {
+        panel.innerHTML = button('pk', 'Use passkey') + button('rec', 'Use a recovery code', true);
+        document.getElementById('pk').onclick = () => loginPasskey().catch(err => setError(err.message));
+    } else {
+        panel.innerHTML = field('Login secret', 'secret', 'password') + button('go', 'Continue') + button('rec', 'Use a recovery code', true);
+        document.getElementById('go').onclick = () => loginSecret().catch(err => setError(err.message));
+    }
+    document.getElementById('rec').onclick = () => showRecovery();
+}
+
+async function loginPasskey() {
+    setError('');
+    const options = await post('/auth/login/passkey/options');
+    const cred = await navigator.credentials.get({ publicKey: prepareRequest(options) });
+    await post('/auth/login/passkey/finish', { credential: credentialToJSON(cred) });
+    askTotp();
+}
+
+async function loginSecret() {
+    setError('');
+    await post('/auth/login/secret', { secret: document.getElementById('secret').value });
+    askTotp();
+}
+
+function askTotp() {
+    lead.textContent = 'Enter the current authenticator code.';
+    panel.innerHTML = field('Authenticator code', 'code', 'text') + button('go', 'Sign in');
+    document.getElementById('go').onclick = async () => {
+        setError('');
+        try {
+            await post('/auth/login/totp', { code: document.getElementById('code').value.trim() });
+            location.assign('/');
+        } catch (err) { setError(err.message); }
+    };
+}
+
+function showRecovery() {
+    lead.textContent = 'A recovery code opens a limited session so you can replace both factors.';
+    panel.innerHTML = field('Recovery code', 'code', 'text') + button('go', 'Continue');
+    document.getElementById('go').onclick = async () => {
+        setError('');
+        try {
+            await post('/auth/login/recovery', { code: document.getElementById('code').value.trim() });
+            showReenroll();
+        } catch (err) { setError(err.message); }
+    };
+}
+
+async function showReenroll() {
+    const status = await (await fetch('/auth/status', { credentials: 'same-origin' })).json();
+    lead.textContent = 'Replace both factors. The console stays locked until you finish.';
+    if (status.webauthn) {
+        panel.innerHTML = button('pk', 'Create a new passkey') + button('totp', 'Replace authenticator', true) + button('fin', 'Finish and show new recovery codes', true);
+        document.getElementById('pk').onclick = async () => {
+            setError('');
+            try {
+                const options = await post('/auth/reenroll/passkey/options');
+                const cred = await navigator.credentials.create({ publicKey: prepareCreation(options) });
+                await post('/auth/reenroll/passkey/finish', { credential: credentialToJSON(cred) });
+                lead.textContent = 'Passkey saved. Replace the authenticator next.';
+            } catch (err) { setError(err.message); }
+        };
+    } else {
+        panel.innerHTML = button('sec', 'Generate a new login secret') + button('totp', 'Replace authenticator', true) + button('fin', 'Finish and show new recovery codes', true);
+        document.getElementById('sec').onclick = async () => {
+            setError('');
+            try {
+                const created = await post('/auth/reenroll/secret');
+                lead.textContent = 'Save this new login secret. It replaces the old one.';
+                const box = document.createElement('div');
+                box.className = 'secret';
+                box.textContent = created.login_secret;
+                panel.prepend(box);
+            } catch (err) { setError(err.message); }
+        };
+    }
+    document.getElementById('totp').onclick = async () => {
+        setError('');
+        try {
+            const totp = await post('/auth/reenroll/totp/begin');
+            const code = window.prompt('Authenticator secret:\n' + totp.secret + '\n\nEnter the 6-digit code');
+            if (!code) return;
+            await post('/auth/reenroll/totp/confirm', { code: code.trim() });
+            lead.textContent = 'Authenticator replaced. Finish to get new recovery codes.';
+        } catch (err) { setError(err.message); }
+    };
+    document.getElementById('fin').onclick = async () => {
+        setError('');
+        try {
+            const done = await post('/auth/reenroll/finish');
+            lead.textContent = 'Store these new recovery codes. The old codes are dead.';
+            panel.innerHTML = '<div class="codes"></div>' + button('in', 'Enter the console');
+            panel.querySelector('.codes').textContent = (done.recovery_codes || []).join('\n');
+            document.getElementById('in').onclick = () => location.assign('/');
+        } catch (err) { setError(err.message); }
+    };
+}
+
+async function main() {
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        foot.textContent = 'This page is not HTTPS. Do not enroll or sign in from a network you do not trust.';
+    }
+    try {
+        const session = await fetch('/auth/session', { credentials: 'same-origin' });
+        if (session.ok) {
+            const body = await session.json();
+            if (!body.limited) { location.assign('/'); return; }
+            await showReenroll();
+            return;
+        }
+        const status = await (await fetch('/auth/status', { credentials: 'same-origin' })).json();
+        if (!status.enrolled) await showEnroll(status);
+        else await showLogin(status);
+    } catch (err) {
+        lead.textContent = 'The sign-in service did not answer.';
+        setError(err.message);
+    }
+}
+main();
+</script>
+</body>
+</html>

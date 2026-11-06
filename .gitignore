@@ -1,0 +1,130 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+mini_siem.db
+
+# Environment variables and credential files
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+.env.telegram
+agents/agent.env
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+id_ecdsa
+id_ecdsa.*
+*.kdbx
+*.ovpn
+**/unifi_agent.key
+**/bootstrap.token
+credentials.json
+secrets.json
+
+# Live site inventory. This stays on the operator machine.
+docs/CONTAINER_SERVER.md
+
+# Agent State
+.win_agent_state
+.win_agent_state.json
+.linux_agent_state
+
+# Build Artifacts
+agents/HeimdallAgent.exe
+agents/build/
+agents/dist/
+*.spec
+
+# Temp files
+win_install.txt
+
+# Data directories
+data/
+logs/
+*.log
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# OS specific
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE workspace settings
+.vscode/settings.json
+.vscode/launch.json
+
+# Pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# pytest
+.pytest_cache
+
+# Node (if any frontend components)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Local tool caches
+.playwright-mcp/

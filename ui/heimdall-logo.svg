@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Heimdall">
+  <defs>
+    <radialGradient id="iris" cx="40%" cy="36%" r="68%">
+      <stop offset="0%" stop-color="#FFF1C2"/>
+      <stop offset="38%" stop-color="#FFB000"/>
+      <stop offset="100%" stop-color="#E25A00"/>
+    </radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="56" fill="none" stroke="#FF9900" stroke-width="3"/>
+  <circle cx="64" cy="64" r="56" fill="none" stroke="#0099FF" stroke-width="3" stroke-linecap="round" stroke-dasharray="78 274" transform="rotate(-36 64 64)"/>
+  <circle cx="64" cy="64" r="48" fill="none" stroke="#FFCC00" stroke-width="1" opacity="0.55"/>
+  <rect x="61" y="2" width="6" height="12" rx="1" fill="#FFCC00"/>
+  <rect x="114" y="61" width="12" height="6" rx="1" fill="#FF9900"/>
+  <rect x="61" y="114" width="6" height="12" rx="1" fill="#FF9900"/>
+  <rect x="2" y="61" width="12" height="6" rx="1" fill="#FF9900"/>
+  <path d="M20 64c0 0 18-30 44-30s44 30 44 30-18 30-44 30S20 64 20 64z" fill="#120800" stroke="#FF9900" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M30 62c8-14 22-22 34-22 12 0 26 8 34 22" fill="none" stroke="#FFCC00" stroke-width="1.6" opacity="0.8"/>
+  <circle cx="64" cy="64" r="16" fill="url(#iris)"/>
+  <circle cx="64" cy="64" r="16" fill="none" stroke="#2A1200" stroke-width="1.2"/>
+  <rect x="61" y="51" width="6" height="26" rx="3" fill="#070707"/>
+  <circle cx="71" cy="57" r="2.4" fill="#FFF8E8"/>
+</svg>

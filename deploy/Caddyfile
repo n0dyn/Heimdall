@@ -1,0 +1,11 @@
+# TLS for the Heimdall console. The API and syslog ports stay unpublished here.
+# Set SIEM_PUBLIC_HOST to the domain that matches SIEM_ORIGIN and SIEM_RP_ID.
+{$SIEM_PUBLIC_HOST} {
+	encode gzip
+	reverse_proxy heimdall:8501
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+}
